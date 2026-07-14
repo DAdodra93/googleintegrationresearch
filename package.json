@@ -1,0 +1,15 @@
+{
+  "name": "google-growth-engine",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "server",
+    "console"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w server",
+    "test": "npm run test -w server",
+    "build": "npm run build -w console && npm run build -w server",
+    "migrate": "npm run migrate -w server"
+  }
+}

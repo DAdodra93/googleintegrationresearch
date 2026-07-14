@@ -1,0 +1,32 @@
+:root {
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #1a1a1a;
+  background: #f6f7f9;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+.shell { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 20px; margin: 0; }
+h2 { font-size: 15px; margin: 24px 0 8px; color: #333; }
+.banner { background: #fff7e0; border: 1px solid #e8d48a; border-radius: 8px; padding: 8px 12px; margin: 12px 0; font-size: 13px; }
+.banner.ok { background: #e8f5ec; border-color: #9fd3ae; }
+.card { background: #fff; border: 1px solid #e3e5e8; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.grow { flex: 1; }
+.muted { color: #777; font-size: 12.5px; }
+.pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.pill.active, .pill.executed, .pill.funded { background: #e2f3e7; color: #17753a; }
+.pill.pending { background: #fff2cf; color: #8a6400; }
+.pill.rejected, .pill.failed, .pill.error { background: #fde5e5; color: #b32020; }
+.pill.stub { background: #e8eefc; color: #2b53b0; }
+button { border: 1px solid #c9ccd1; background: #fff; border-radius: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+button:hover { background: #f0f2f5; }
+button.primary { background: #1a56db; border-color: #1a56db; color: #fff; }
+button.primary:hover { background: #164bbf; }
+button.danger { color: #b32020; border-color: #e0b4b4; }
+input, select { border: 1px solid #c9ccd1; border-radius: 8px; padding: 7px 10px; font-size: 13.5px; }
+nav { display: flex; gap: 6px; margin: 16px 0; }
+nav button.tab { border: none; background: transparent; padding: 7px 12px; border-radius: 8px; color: #555; }
+nav button.tab.on { background: #e6ebf5; color: #1a3f9e; font-weight: 600; }
+pre { background: #f2f3f5; border-radius: 8px; padding: 10px; font-size: 12px; overflow-x: auto; }
+.err { color: #b32020; font-size: 13px; }
