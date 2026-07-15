@@ -15,12 +15,12 @@ separate product as an integration.
 
 ## Status
 
-**Phase 1 complete — at STOP gate, awaiting operator approval.**
+**Phase 3 (Ads) complete — at STOP gate, awaiting operator approval.**
 
 | Phase | Deliverable | State |
 |---|---|---|
 | 0 | [Research refresh](docs/PHASE0-RESEARCH.md) + [prerequisite checklist](docs/PHASE0-PREREQUISITES.md) | ✅ approved |
-| 1 | [Shared foundation & auth](docs/PHASE1-FOUNDATION.md) (stub-first) | ✅ awaiting approval |
+| 1 | [Shared foundation & auth](docs/PHASE1-FOUNDATION.md) (stub-first) | ✅ approved |
+| 3 | [Ads module](docs/PHASE3-ADS.md) (Flows A + B, built first by operator decision) | ✅ awaiting approval |
 | 2 | GBP module (Flows A + B) | — |
-| 3 | Ads module (Flows A + B) | — |
 | 4 | E2E test harness + approval queue | — |

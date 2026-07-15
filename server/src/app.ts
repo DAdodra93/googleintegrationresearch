@@ -17,6 +17,7 @@ import { registerMerchantRoutes } from './routes/merchants.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerApprovalRoutes } from './routes/approvals.js';
 import { registerDevRoutes } from './routes/dev.js';
+import { registerAdsModule } from './modules/ads/index.js';
 
 export interface AppContext {
   config: AppConfig;
@@ -75,6 +76,7 @@ export async function buildApp(config: AppConfig, storeOverride?: Store): Promis
   registerAuthRoutes(app, ctx);
   registerApprovalRoutes(app, ctx);
   registerDevRoutes(app, ctx);
+  registerAdsModule(app, ctx); // independent module — GBP registers separately in Phase 2
 
   // Serve the built console when present (console/dist); dev uses Vite's proxy.
   const consoleDist = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'console', 'dist');

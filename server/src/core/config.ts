@@ -13,6 +13,7 @@ const Env = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   ADS_DEVELOPER_TOKEN: z.string().optional(),
   ADS_MCC_CUSTOMER_ID: z.string().regex(/^\d+$/).optional(),
+  ADS_MCC_REFRESH_TOKEN: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default('gpt-4o-mini'),
   BILLING_MODEL: z.enum(['interim', 'invoiced']).default('interim'),
@@ -28,7 +29,7 @@ export interface AppConfig {
   encKey: Buffer;
   encKeyIsEphemeral: boolean;
   google: { clientId?: string; clientSecret?: string; stub: boolean };
-  ads: { developerToken?: string; mccCustomerId?: string; configured: boolean };
+  ads: { developerToken?: string; mccCustomerId?: string; mccRefreshToken?: string; configured: boolean };
   ai: { openaiApiKey?: string; model: string; stub: boolean };
   billingModel: 'interim' | 'invoiced';
   defaults: { country: string; currency: string };
@@ -48,7 +49,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     ads: {
       developerToken: e.ADS_DEVELOPER_TOKEN,
       mccCustomerId: e.ADS_MCC_CUSTOMER_ID,
-      configured: Boolean(e.ADS_DEVELOPER_TOKEN && e.ADS_MCC_CUSTOMER_ID),
+      mccRefreshToken: e.ADS_MCC_REFRESH_TOKEN,
+      configured: Boolean(e.ADS_DEVELOPER_TOKEN && e.ADS_MCC_CUSTOMER_ID && e.ADS_MCC_REFRESH_TOKEN),
     },
     ai: { openaiApiKey: e.OPENAI_API_KEY, model: e.OPENAI_MODEL, stub: aiStub },
     billingModel: e.BILLING_MODEL,
