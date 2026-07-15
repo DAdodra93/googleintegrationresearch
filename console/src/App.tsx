@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, type Approval, type Connection, type Merchant, type SystemStatus } from './api';
 import AdsPanel from './AdsPanel';
+import GbpPanel from './GbpPanel';
 
-type Tab = 'connections' | 'ads' | 'approvals' | 'system';
+type Tab = 'connections' | 'gbp' | 'ads' | 'approvals' | 'system';
 
 export default function App() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
@@ -43,7 +44,7 @@ export default function App() {
       <MerchantPicker merchants={merchants} merchantId={merchantId} onSelect={setMerchantId} onCreated={refreshMerchants} />
 
       <nav>
-        {(['connections', 'ads', 'approvals', 'system'] as Tab[]).map((t) => (
+        {(['connections', 'gbp', 'ads', 'approvals', 'system'] as Tab[]).map((t) => (
           <button key={t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>
             {t[0].toUpperCase() + t.slice(1)}
           </button>
@@ -51,6 +52,7 @@ export default function App() {
       </nav>
 
       {tab === 'connections' && merchant && <Connections merchant={merchant} />}
+      {tab === 'gbp' && merchant && <GbpPanel merchant={merchant} />}
       {tab === 'ads' && merchant && <AdsPanel merchant={merchant} />}
       {tab === 'approvals' && merchant && <Approvals merchant={merchant} />}
       {tab === 'system' && <SystemPanel status={status} />}
