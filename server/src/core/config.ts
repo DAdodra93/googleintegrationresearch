@@ -17,6 +17,7 @@ const Env = z.object({
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default('gpt-4o-mini'),
   BILLING_MODEL: z.enum(['interim', 'invoiced']).default('interim'),
+  OPERATOR_EMAILS: z.string().default(''),
   DEFAULT_COUNTRY: z.string().length(2).default('IN'),
   DEFAULT_CURRENCY: z.string().length(3).default('INR'),
 });
@@ -33,6 +34,8 @@ export interface AppConfig {
   ai: { openaiApiKey?: string; model: string; stub: boolean };
   billingModel: 'interim' | 'invoiced';
   defaults: { country: string; currency: string };
+  /** Emails that get the operator role on signup (first signup is operator regardless). */
+  operatorEmails: string[];
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -55,5 +58,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     ai: { openaiApiKey: e.OPENAI_API_KEY, model: e.OPENAI_MODEL, stub: aiStub },
     billingModel: e.BILLING_MODEL,
     defaults: { country: e.DEFAULT_COUNTRY, currency: e.DEFAULT_CURRENCY },
+    operatorEmails: e.OPERATOR_EMAILS.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
   };
 }

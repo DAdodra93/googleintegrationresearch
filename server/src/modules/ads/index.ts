@@ -72,21 +72,43 @@ export function registerAdsModule(app: FastifyInstance, ctx: AppContext): AdsSer
         name: z.string().optional(),
       })
       .parse(req.body);
+    await ctx.authz.assertMerchant(req, body.merchantId);
     reply.status(201);
     return service.setupAccount(body);
   });
 
   app.get('/api/ads/accounts', async (req) => {
     const { merchantId } = z.object({ merchantId: z.string().uuid() }).parse(req.query);
+    await ctx.authz.assertMerchant(req, merchantId);
     return service.listAccounts(merchantId);
   });
 
-  app.post('/api/ads/accounts/:id/refresh', async (req) => service.refreshAccount((req.params as any).id));
+  const assertAccountAccess = async (req: any, accountId: string) => {
+    const account = await service.getAccount(accountId);
+    if (!account) throw Object.assign(new Error('ads account not found'), { statusCode: 404 });
+    await ctx.authz.assertMerchant(req, account.merchantId);
+    return account;
+  };
+  const assertCampaignAccess = async (req: any, campaignId: string) => {
+    const campaign = await service.getCampaign(campaignId);
+    if (!campaign) throw Object.assign(new Error('campaign not found'), { statusCode: 404 });
+    await ctx.authz.assertMerchant(req, campaign.merchantId);
+    return campaign;
+  };
 
-  app.get('/api/ads/accounts/:id/structure', async (req) => service.accountStructure((req.params as any).id));
+  app.post('/api/ads/accounts/:id/refresh', async (req) => {
+    await assertAccountAccess(req, (req.params as any).id);
+    return service.refreshAccount((req.params as any).id);
+  });
+
+  app.get('/api/ads/accounts/:id/structure', async (req) => {
+    await assertAccountAccess(req, (req.params as any).id);
+    return service.accountStructure((req.params as any).id);
+  });
 
   // Interim-billing ops action: operator confirms the manual Ads-UI billing step.
   app.post('/api/ads/accounts/:id/billing/mark-funded', async (req) => {
+    ctx.authz.requireOperator(req);
     const account = await service.refreshAccount((req.params as any).id);
     if (!account.customerId) throw new Error('no customerId yet');
     const status = await ctx.billing.markFunded({ merchantId: account.merchantId, adsCustomerId: account.customerId, by: 'operator' });
@@ -104,22 +126,26 @@ export function registerAdsModule(app: FastifyInstance, ctx: AppContext): AdsSer
         budget: BudgetSchema,
       })
       .parse(req.body);
+    await ctx.authz.assertMerchant(req, body.merchantId);
+    const owner = await service.getAccount(body.adsAccountId);
+    if (!owner || owner.merchantId !== body.merchantId) throw new Error('adsAccountId does not belong to this merchant');
     reply.status(201);
     return service.createDraft({ ...body, spec: body.spec ?? {} });
   });
 
   app.get('/api/ads/campaigns', async (req) => {
     const { merchantId } = z.object({ merchantId: z.string().uuid() }).parse(req.query);
+    await ctx.authz.assertMerchant(req, merchantId);
     return service.listCampaigns(merchantId);
   });
 
   app.get('/api/ads/campaigns/:id', async (req) => {
-    const campaign = await service.getCampaign((req.params as any).id);
-    if (!campaign) throw Object.assign(new Error('campaign not found'), { statusCode: 404 });
+    const campaign = await assertCampaignAccess(req, (req.params as any).id);
     return { ...campaign, finalUrl: service.finalUrl(campaign) };
   });
 
   app.post('/api/ads/campaigns/:id/propose-launch', async (req, reply) => {
+    await assertCampaignAccess(req, (req.params as any).id);
     reply.status(201);
     return service.proposeLaunch((req.params as any).id);
   });
@@ -128,21 +154,27 @@ export function registerAdsModule(app: FastifyInstance, ctx: AppContext): AdsSer
     const body = z
       .object({ action: z.enum(['pause', 'resume', 'set_daily_budget']), dailyAmount: z.number().positive().optional() })
       .parse(req.body);
+    await assertCampaignAccess(req, (req.params as any).id);
     reply.status(201);
     return service.proposeEdit((req.params as any).id, body);
   });
 
   app.get('/api/ads/campaigns/:id/insights', async (req) => {
     const { windowDays } = z.object({ windowDays: z.coerce.number().int().min(1).max(90).default(7) }).parse(req.query ?? {});
+    await assertCampaignAccess(req, (req.params as any).id);
     return service.insights((req.params as any).id, windowDays);
   });
 
   app.post('/api/ads/campaigns/:id/tcpl/evaluate', async (req) => {
     const { windowDays } = z.object({ windowDays: z.coerce.number().int().min(1).max(90).default(7) }).parse((req.body as any) ?? {});
+    await assertCampaignAccess(req, (req.params as any).id);
     return service.evaluateTcpl((req.params as any).id, windowDays);
   });
 
-  app.get('/api/ads/campaigns/:id/tcpl/history', async (req) => service.listTcplEvaluations((req.params as any).id));
+  app.get('/api/ads/campaigns/:id/tcpl/history', async (req) => {
+    await assertCampaignAccess(req, (req.params as any).id);
+    return service.listTcplEvaluations((req.params as any).id);
+  });
 
   // AI assists (internal reads/generation — autonomous by design; outputs
   // only reach Google through the approval-gated launch/edit paths).
@@ -156,6 +188,7 @@ export function registerAdsModule(app: FastifyInstance, ctx: AppContext): AdsSer
         keywords: z.array(z.string()).default([]),
       })
       .parse(req.body);
+    await ctx.authz.assertMerchant(req, body.merchantId);
     const merchant = await ctx.store.getMerchant(body.merchantId);
     if (!merchant) throw new Error('merchant not found');
     return proposeBudget(ctx.ai, {
@@ -175,6 +208,7 @@ export function registerAdsModule(app: FastifyInstance, ctx: AppContext): AdsSer
         keywords: z.array(z.string()).default([]),
       })
       .parse(req.body);
+    await ctx.authz.assertMerchant(req, body.merchantId);
     const merchant = await ctx.store.getMerchant(body.merchantId);
     if (!merchant) throw new Error('merchant not found');
     return generateAdCopy(ctx.ai, { merchantName: merchant.name, ...body });

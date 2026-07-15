@@ -1,11 +1,60 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type Approval, type Connection, type Merchant, type SystemStatus } from './api';
+import { api, type Approval, type Connection, type Merchant, type SessionUser, type SystemStatus } from './api';
 import AdsPanel from './AdsPanel';
 import GbpPanel from './GbpPanel';
 
 type Tab = 'connections' | 'gbp' | 'ads' | 'approvals' | 'system';
 
 export default function App() {
+  const [user, setUser] = useState<SessionUser | null | 'loading'>('loading');
+  useEffect(() => {
+    api.me().then((r) => setUser(r.user)).catch(() => setUser(null));
+  }, []);
+  if (user === 'loading') return <div className="shell muted">loading…</div>;
+  if (!user) return <AuthScreen onAuthed={setUser} />;
+  return <Workspace user={user} onLogout={() => api.logout().then(() => setUser(null))} />;
+}
+
+function AuthScreen({ onAuthed }: { onAuthed: (u: SessionUser) => void }) {
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [err, setErr] = useState('');
+  const submit = async () => {
+    setErr('');
+    try {
+      const r = mode === 'login' ? await api.login(email, password) : await api.signup(email, password, businessName || undefined);
+      onAuthed(r.user);
+    } catch (e) {
+      setErr(String(e));
+    }
+  };
+  return (
+    <div className="shell" style={{ maxWidth: 420 }}>
+      <h1>Google Growth Engine</h1>
+      <div className="card">
+        <h2>{mode === 'login' ? 'Sign in' : 'Create your account'}</h2>
+        <div className="row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+          <input placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input placeholder="Password (8+ chars)" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} />
+          {mode === 'signup' && (
+            <input placeholder="Your business name" value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
+          )}
+          {err && <div className="err">{err}</div>}
+          <button className="primary" onClick={submit}>
+            {mode === 'login' ? 'Sign in' : 'Sign up'}
+          </button>
+          <button onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}>
+            {mode === 'login' ? 'New here? Create an account' : 'Have an account? Sign in'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Workspace({ user, onLogout }: { user: SessionUser; onLogout: () => void }) {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [merchantId, setMerchantId] = useState<string>(() => localStorage.getItem('gge.merchantId') ?? '');
@@ -32,9 +81,11 @@ export default function App() {
   return (
     <div className="shell">
       <div className="row">
-        <h1 className="grow">Google Growth Engine — Test Console</h1>
+        <h1 className="grow">Google Growth Engine</h1>
         {status?.google.stub && <span className="pill stub">GOOGLE STUB MODE</span>}
         {status?.ai.stub && <span className="pill stub">AI STUB</span>}
+        <span className="pill stub">{user.email} · {user.role}</span>
+        <button onClick={onLogout}>Sign out</button>
       </div>
       {status?.store === 'memory' && (
         <div className="banner">In-memory store — data resets on server restart. Set DATABASE_URL for persistence.</div>
@@ -53,7 +104,7 @@ export default function App() {
 
       {tab === 'connections' && merchant && <Connections merchant={merchant} />}
       {tab === 'gbp' && merchant && <GbpPanel merchant={merchant} />}
-      {tab === 'ads' && merchant && <AdsPanel merchant={merchant} />}
+      {tab === 'ads' && merchant && <AdsPanel merchant={merchant} isOperator={user.role === 'operator'} />}
       {tab === 'approvals' && merchant && <Approvals merchant={merchant} />}
       {tab === 'system' && <SystemPanel status={status} />}
       {!merchant && tab !== 'system' && <div className="muted">Create a merchant to begin.</div>}
@@ -223,7 +274,7 @@ function SystemPanel({ status }: { status: SystemStatus | null }) {
 function AuditPanel() {
   const [events, setEvents] = useState<Array<{ event: string; module?: string; createdAt: string }>>([]);
   useEffect(() => {
-    api.audit().then(setEvents);
+    api.audit().then(setEvents).catch(() => setEvents([])); // operator-only endpoint
   }, []);
   return (
     <div className="card">

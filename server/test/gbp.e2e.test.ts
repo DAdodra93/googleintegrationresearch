@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildApp } from '../src/app.js';
-import { loadConfig } from '../src/core/config.js';
+import { authedApp } from './helpers.js';
 
 async function setup() {
-  const { app } = await buildApp(loadConfig({ PORT: '0' } as NodeJS.ProcessEnv));
+  const app = await authedApp();
   const merchant = (await app.inject({ method: 'POST', url: '/api/merchants', payload: { name: 'Chai Point Indiranagar' } })).json();
   // Connect the gbp module via the (stub) OAuth flow.
   const start = await app.inject({ method: 'GET', url: `/auth/google/gbp/start?merchantId=${merchant.id}` });
@@ -32,7 +31,7 @@ async function connectExisting(app: any, merchant: any) {
 
 describe('gbp module E2E (stub gateway)', () => {
   it('requires the gbp OAuth connection before discovery', async () => {
-    const { app } = await buildApp(loadConfig({ PORT: '0' } as NodeJS.ProcessEnv));
+    const app = await authedApp();
     const merchant = (await app.inject({ method: 'POST', url: '/api/merchants', payload: { name: 'No OAuth' } })).json();
     const res = await app.inject({ method: 'GET', url: `/api/gbp/discover?merchantId=${merchant.id}` });
     expect(res.statusCode).toBe(500);

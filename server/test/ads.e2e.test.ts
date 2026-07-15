@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildApp } from '../src/app.js';
-import { loadConfig } from '../src/core/config.js';
+import { authedApp } from './helpers.js';
 
 const SPEC = {
   geo: { countryCodes: ['IN'], locations: [] },
@@ -20,7 +19,7 @@ const SPEC = {
 };
 
 async function setup() {
-  const { app } = await buildApp(loadConfig({ PORT: '0' } as NodeJS.ProcessEnv));
+  const app = await authedApp();
   const merchant = (await app.inject({ method: 'POST', url: '/api/merchants', payload: { name: 'Bangalore Chai Co' } })).json();
   return { app, merchant };
 }

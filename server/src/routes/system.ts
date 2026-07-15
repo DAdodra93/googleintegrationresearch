@@ -17,6 +17,7 @@ export function registerSystemRoutes(app: FastifyInstance, ctx: AppContext): voi
   }));
 
   app.get('/api/system/audit', async (req) => {
+    ctx.authz.requireOperator(req);
     const { limit } = req.query as { limit?: string };
     return ctx.store.listAudit(limit ? Number(limit) : 50);
   });

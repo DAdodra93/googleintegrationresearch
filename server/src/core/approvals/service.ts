@@ -85,4 +85,8 @@ export class ApprovalService {
   list(filter?: Parameters<Store['listApprovals']>[0]) {
     return this.store.listApprovals(filter);
   }
+
+  get(id: string) {
+    return this.store.getApproval(id);
+  }
 }

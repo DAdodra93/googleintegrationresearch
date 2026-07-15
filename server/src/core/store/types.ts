@@ -1,5 +1,15 @@
 export type Module = 'gbp' | 'ads';
 
+export type UserRole = 'operator' | 'merchant';
+
+export interface User {
+  id: string;
+  email: string;
+  passwordHash: string;
+  role: UserRole;
+  createdAt: string;
+}
+
 export interface Merchant {
   id: string;
   name: string;
@@ -57,6 +67,13 @@ export interface AuditEvent {
 export interface Store {
   kind: 'memory' | 'postgres';
 
+  createUser(u: { email: string; passwordHash: string; role: UserRole }): Promise<User>;
+  getUser(id: string): Promise<User | null>;
+  getUserByEmail(email: string): Promise<User | null>;
+  countUsers(): Promise<number>;
+  bindUserMerchant(userId: string, merchantId: string): Promise<void>;
+  listMerchantIdsForUser(userId: string): Promise<string[]>;
+
   createMerchant(m: { name: string; countryCode: string; currencyCode: string }): Promise<Merchant>;
   listMerchants(): Promise<Merchant[]>;
   getMerchant(id: string): Promise<Merchant | null>;
@@ -69,6 +86,7 @@ export interface Store {
     scopes: string[];
   }): Promise<GoogleConnection>;
   getConnection(merchantId: string, module: Module): Promise<GoogleConnection | null>;
+  getConnectionById(id: string): Promise<GoogleConnection | null>;
   listConnections(merchantId: string): Promise<GoogleConnection[]>;
   setConnectionStatus(id: string, status: GoogleConnection['status']): Promise<void>;
   deleteConnection(id: string): Promise<void>;

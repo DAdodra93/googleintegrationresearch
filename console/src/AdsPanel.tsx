@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Merchant } from './api';
 import { adsApi, type AdsAccount, type AdsCampaign, type Budget, type Insights } from './adsApi';
 
-export default function AdsPanel({ merchant }: { merchant: Merchant }) {
+export default function AdsPanel({ merchant, isOperator }: { merchant: Merchant; isOperator: boolean }) {
   const [accounts, setAccounts] = useState<AdsAccount[]>([]);
   const [campaigns, setCampaigns] = useState<AdsCampaign[]>([]);
   const [err, setErr] = useState('');
@@ -27,7 +27,7 @@ export default function AdsPanel({ merchant }: { merchant: Merchant }) {
     <>
       {err && <div className="err">{err}</div>}
       {notice && <div className="banner ok">{notice}</div>}
-      <AccountsSection accounts={accounts} merchant={merchant} onChange={refresh} setNotice={setNotice} />
+      <AccountsSection accounts={accounts} merchant={merchant} onChange={refresh} setNotice={setNotice} isOperator={isOperator} />
       {activeAccount && (
         <CampaignCreate merchant={merchant} account={activeAccount} onCreated={refresh} setErr={setErr} setNotice={setNotice} />
       )}
@@ -45,11 +45,13 @@ function AccountsSection({
   merchant,
   onChange,
   setNotice,
+  isOperator,
 }: {
   accounts: AdsAccount[];
   merchant: Merchant;
   onChange: () => void;
   setNotice: (s: string) => void;
+  isOperator: boolean;
 }) {
   const [flow, setFlow] = useState<'existing_linked' | 'provisioned'>('provisioned');
   const [billingMode, setBillingMode] = useState('we_pay_provisioned');
@@ -72,17 +74,20 @@ function AccountsSection({
           </div>
           <span className={`pill ${a.linkStatus === 'active' ? 'active' : 'pending'}`}>{a.linkStatus}</span>
           {a.funding && <span className={`pill ${a.funding === 'funded' ? 'funded' : 'pending'}`}>{a.funding}</span>}
-          {a.funding === 'pending_manual_billing_setup' && (
-            <button
-              onClick={async () => {
-                await adsApi.markFunded(a.id);
-                setNotice('Marked funded — remember this reflects the manual Ads-UI billing step (ops runbook).');
-                onChange();
-              }}
-            >
-              Mark billing done
-            </button>
-          )}
+          {a.funding === 'pending_manual_billing_setup' &&
+            (isOperator ? (
+              <button
+                onClick={async () => {
+                  await adsApi.markFunded(a.id);
+                  setNotice('Marked funded — remember this reflects the manual Ads-UI billing step (ops runbook).');
+                  onChange();
+                }}
+              >
+                Mark billing done
+              </button>
+            ) : (
+              <span className="muted">billing activation pending (platform team)</span>
+            ))}
         </div>
       ))}
       <div className="card row">

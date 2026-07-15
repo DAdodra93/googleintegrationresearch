@@ -41,75 +41,120 @@ export function registerGbpModule(app: FastifyInstance, ctx: AppContext): GbpSer
 
   const MerchantQ = z.object({ merchantId: z.string().uuid() });
 
-  app.get('/api/gbp/discover', async (req) => service.discover(MerchantQ.parse(req.query).merchantId));
+  const assertProfileAccess = async (req: any, profileId: string) => {
+    const profile = await service.getProfile(profileId);
+    await ctx.authz.assertMerchant(req, profile.merchantId);
+    return profile;
+  };
+
+  app.get('/api/gbp/discover', async (req) => {
+    const { merchantId } = MerchantQ.parse(req.query);
+    await ctx.authz.assertMerchant(req, merchantId);
+    return service.discover(merchantId);
+  });
 
   app.post('/api/gbp/profiles', async (req, reply) => {
     const body = z
       .object({ merchantId: z.string().uuid(), accountName: z.string(), locationName: z.string(), title: z.string() })
       .parse(req.body);
+    await ctx.authz.assertMerchant(req, body.merchantId);
     reply.status(201);
     return service.connectExisting(body);
   });
 
-  app.get('/api/gbp/profiles', async (req) => service.listProfiles(MerchantQ.parse(req.query).merchantId));
-  app.get('/api/gbp/profiles/:id', async (req) => service.refreshVerification((req.params as any).id));
+  app.get('/api/gbp/profiles', async (req) => {
+    const { merchantId } = MerchantQ.parse(req.query);
+    await ctx.authz.assertMerchant(req, merchantId);
+    return service.listProfiles(merchantId);
+  });
+  app.get('/api/gbp/profiles/:id', async (req) => {
+    await assertProfileAccess(req, (req.params as any).id);
+    return service.refreshVerification((req.params as any).id);
+  });
 
   // Flow B
   app.post('/api/gbp/profiles/draft', async (req, reply) => {
     const body = z.object({ merchantId: z.string().uuid() }).and(PrefillInputSchema).parse(req.body);
+    await ctx.authz.assertMerchant(req, body.merchantId);
     reply.status(201);
     return service.createDraft(body.merchantId, body);
   });
   app.post('/api/gbp/profiles/:id/propose-create', async (req, reply) => {
+    await assertProfileAccess(req, (req.params as any).id);
     reply.status(201);
     return service.proposeCreate((req.params as any).id);
   });
-  app.get('/api/gbp/profiles/:id/verification/options', async (req) => service.verificationOptions((req.params as any).id));
+  app.get('/api/gbp/profiles/:id/verification/options', async (req) => {
+    await assertProfileAccess(req, (req.params as any).id);
+    return service.verificationOptions((req.params as any).id);
+  });
   app.post('/api/gbp/profiles/:id/verification/start', async (req) => {
     const body = z
       .object({ method: z.string(), languageCode: z.string().default('en'), phoneNumber: z.string().optional(), emailAddress: z.string().optional() })
       .parse(req.body);
+    await assertProfileAccess(req, (req.params as any).id);
     return service.startVerification((req.params as any).id, body);
   });
   app.post('/api/gbp/profiles/:id/verification/complete', async (req) => {
     const { pin } = z.object({ pin: z.string().min(3) }).parse(req.body);
+    await assertProfileAccess(req, (req.params as any).id);
     return service.completeVerification((req.params as any).id, pin);
   });
 
   // Management surface
-  app.get('/api/gbp/profiles/:id/info', async (req) => service.info((req.params as any).id));
+  app.get('/api/gbp/profiles/:id/info', async (req) => {
+    await assertProfileAccess(req, (req.params as any).id);
+    return service.info((req.params as any).id);
+  });
   app.post('/api/gbp/profiles/:id/propose-info-update', async (req, reply) => {
+    await assertProfileAccess(req, (req.params as any).id);
     reply.status(201);
     return service.proposeInfoUpdate((req.params as any).id, InfoPatchSchema.parse(req.body));
   });
 
-  app.get('/api/gbp/profiles/:id/reviews', async (req) => service.reviews((req.params as any).id));
+  app.get('/api/gbp/profiles/:id/reviews', async (req) => {
+    await assertProfileAccess(req, (req.params as any).id);
+    return service.reviews((req.params as any).id);
+  });
   app.post('/api/gbp/profiles/:id/propose-review-reply', async (req, reply) => {
     const body = z.object({ reviewName: z.string(), reply: z.string().min(5).max(4000) }).parse(req.body);
+    await assertProfileAccess(req, (req.params as any).id);
     reply.status(201);
     return service.proposeReviewReply((req.params as any).id, body.reviewName, body.reply);
   });
 
-  app.get('/api/gbp/profiles/:id/posts', async (req) => service.posts((req.params as any).id));
+  app.get('/api/gbp/profiles/:id/posts', async (req) => {
+    await assertProfileAccess(req, (req.params as any).id);
+    return service.posts((req.params as any).id);
+  });
   app.post('/api/gbp/profiles/:id/propose-post', async (req, reply) => {
+    await assertProfileAccess(req, (req.params as any).id);
     reply.status(201);
     return service.proposePost((req.params as any).id, PostInputSchema.parse(req.body));
   });
 
-  app.get('/api/gbp/profiles/:id/media', async (req) => service.media((req.params as any).id));
+  app.get('/api/gbp/profiles/:id/media', async (req) => {
+    await assertProfileAccess(req, (req.params as any).id);
+    return service.media((req.params as any).id);
+  });
   app.post('/api/gbp/profiles/:id/propose-media', async (req, reply) => {
     const body = z
       .object({ sourceUrl: z.string().url(), category: z.enum(['COVER', 'PROFILE', 'ADDITIONAL']).default('ADDITIONAL') })
       .parse(req.body);
+    await assertProfileAccess(req, (req.params as any).id);
     reply.status(201);
     return service.proposeMedia((req.params as any).id, body.sourceUrl, body.category);
   });
 
   app.get('/api/gbp/profiles/:id/performance', async (req) => {
     const { days } = z.object({ days: z.coerce.number().int().min(7).max(180).default(28) }).parse(req.query ?? {});
+    await assertProfileAccess(req, (req.params as any).id);
     return service.performance((req.params as any).id, days);
   });
-  app.get('/api/gbp/profiles/:id/keywords', async (req) => service.keywords((req.params as any).id));
+  app.get('/api/gbp/profiles/:id/keywords', async (req) => {
+    await assertProfileAccess(req, (req.params as any).id);
+    return service.keywords((req.params as any).id);
+  });
 
   // AI assists (drafts only — writes go through approvals)
   app.post('/api/gbp/ai/rewrite', async (req) => {
@@ -121,13 +166,13 @@ export function registerGbpModule(app: FastifyInstance, ctx: AppContext): GbpSer
         tone: z.string().optional(),
       })
       .parse(req.body);
-    const profile = await service.getProfile(body.profileId);
+    const profile = await assertProfileAccess(req, body.profileId);
     return { suggestion: await rewriteField(ctx.ai, { ...body, businessName: profile.title }) };
   });
 
   app.post('/api/gbp/ai/review-reply', async (req) => {
     const body = z.object({ profileId: z.string().uuid(), reviewName: z.string() }).parse(req.body);
-    const profile = await service.getProfile(body.profileId);
+    const profile = await assertProfileAccess(req, body.profileId);
     const review = (await service.reviews(body.profileId)).find((r) => r.reviewName === body.reviewName);
     if (!review) throw new Error('review not found');
     return { suggestion: await draftReviewReply(ctx.ai, { businessName: profile.title, review }) };
@@ -135,7 +180,7 @@ export function registerGbpModule(app: FastifyInstance, ctx: AppContext): GbpSer
 
   app.post('/api/gbp/ai/post', async (req) => {
     const body = z.object({ profileId: z.string().uuid(), topic: z.string().min(3), ctaUrl: z.string().url().optional() }).parse(req.body);
-    const profile = await service.getProfile(body.profileId);
+    const profile = await assertProfileAccess(req, body.profileId);
     return generatePost(ctx.ai, { businessName: profile.title, topic: body.topic, ctaUrl: body.ctaUrl });
   });
 

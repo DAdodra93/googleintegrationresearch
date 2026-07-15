@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildApp } from '../src/app.js';
-import { loadConfig } from '../src/core/config.js';
+import { authedApp } from './helpers.js';
 
 /**
  * Full stub-mode pipeline: merchant → OAuth connect (stub exchanger, both
@@ -9,8 +8,7 @@ import { loadConfig } from '../src/core/config.js';
  * only the exchanger/provider implementations swap.
  */
 async function stubApp() {
-  const config = loadConfig({ PORT: '0', OPENAI_MODEL: 'gpt-4o-mini' } as NodeJS.ProcessEnv);
-  return buildApp(config);
+  return { app: await authedApp() };
 }
 
 describe('foundation E2E (stub mode)', () => {

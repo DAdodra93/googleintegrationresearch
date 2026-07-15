@@ -40,7 +40,19 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return res.status === 204 ? (undefined as T) : res.json();
 }
 
+export interface SessionUser {
+  id: string;
+  email: string;
+  role: 'operator' | 'merchant';
+}
+
 export const api = {
+  me: () => req<{ user: SessionUser }>('/api/auth/me'),
+  signup: (email: string, password: string, businessName?: string) =>
+    req<{ user: SessionUser }>('/api/auth/signup', { method: 'POST', body: JSON.stringify({ email, password, businessName }) }),
+  login: (email: string, password: string) =>
+    req<{ user: SessionUser }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  logout: () => req<{ ok: boolean }>('/api/auth/logout', { method: 'POST', body: '{}' }),
   status: () => req<SystemStatus>('/api/system/status'),
   merchants: () => req<Merchant[]>('/api/merchants'),
   createMerchant: (name: string) => req<Merchant>('/api/merchants', { method: 'POST', body: JSON.stringify({ name }) }),

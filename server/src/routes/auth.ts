@@ -14,6 +14,7 @@ export function registerAuthRoutes(app: FastifyInstance, ctx: AppContext): void 
     const module = parseModule((req.params as { module: string }).module);
     const { merchantId } = req.query as { merchantId?: string };
     if (!merchantId) return reply.status(400).send({ error: 'merchantId required' });
+    await ctx.authz.assertMerchant(req, merchantId);
     const url = await ctx.googleAuth.startConnect(merchantId, module);
     return reply.redirect(url);
   });

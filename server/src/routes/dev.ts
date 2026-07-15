@@ -3,10 +3,12 @@ import { z } from 'zod';
 import type { AppContext } from '../app.js';
 
 /**
- * Dev/pipeline-proof routes — exercise the shared foundation end to end
- * before the real modules exist (Phase 2/3 replace these with real actions).
+ * Dev/pipeline-proof routes — operator-only diagnostics.
  */
 export function registerDevRoutes(app: FastifyInstance, ctx: AppContext): void {
+  app.addHook('preHandler', async (req) => {
+    if (req.url.startsWith('/api/dev/')) ctx.authz.requireOperator(req);
+  });
   // Proves the AI seam: prompt → provider (stub or OpenAI) → response.
   app.post('/api/dev/ai/complete', async (req) => {
     const body = z.object({ prompt: z.string().min(1), system: z.string().optional(), json: z.boolean().optional() }).parse(req.body);

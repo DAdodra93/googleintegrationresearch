@@ -5,6 +5,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import type { AppConfig } from './core/config.js';
 import { createAiProvider, type AiProvider } from './core/ai/index.js';
+import { Authz, AuthService, registerAuthGuard } from './core/authn.js';
 import { createBillingProvider, type BillingProvider } from './core/billing/index.js';
 import { ApprovalService } from './core/approvals/service.js';
 import { GoogleAuthService } from './core/googleauth/service.js';
@@ -12,6 +13,7 @@ import { RealTokenExchanger, StubTokenExchanger } from './core/googleauth/exchan
 import { MemoryStore } from './core/store/memory.js';
 import { PgStore } from './core/store/pg.js';
 import type { Store } from './core/store/types.js';
+import { registerAuthnRoutes } from './routes/authn.js';
 import { registerSystemRoutes } from './routes/system.js';
 import { registerMerchantRoutes } from './routes/merchants.js';
 import { registerAuthRoutes } from './routes/auth.js';
@@ -27,6 +29,8 @@ export interface AppContext {
   billing: BillingProvider;
   approvals: ApprovalService;
   googleAuth: GoogleAuthService;
+  authz: Authz;
+  authService: AuthService;
 }
 
 export async function createStore(config: AppConfig): Promise<Store> {
@@ -51,6 +55,8 @@ export async function buildApp(config: AppConfig, storeOverride?: Store): Promis
     billing: createBillingProvider(config, store),
     approvals: new ApprovalService(store),
     googleAuth: new GoogleAuthService({ store, exchanger, encKey: config.encKey, publicBaseUrl: config.publicBaseUrl }),
+    authz: new Authz(store),
+    authService: new AuthService({ store, encKey: config.encKey, operatorEmails: config.operatorEmails }),
   };
 
   // Phase 1 demo executor: exercises the propose→approve→execute pipeline end
@@ -72,6 +78,11 @@ export async function buildApp(config: AppConfig, storeOverride?: Store): Promis
     reply.status(err.statusCode && err.statusCode >= 400 ? err.statusCode : 500).send({ error: err.message });
   });
 
+  // Session guard: everything except /api/auth/*, lead redirects, OAuth
+  // callbacks, and the static console requires a signed-in user.
+  registerAuthGuard(app, { store, encKey: config.encKey });
+
+  registerAuthnRoutes(app, ctx);
   registerSystemRoutes(app, ctx);
   registerMerchantRoutes(app, ctx);
   registerAuthRoutes(app, ctx);

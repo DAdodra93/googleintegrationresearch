@@ -8,6 +8,8 @@ import type {
   Merchant,
   Module,
   Store,
+  User,
+  UserRole,
 } from './types.js';
 
 const now = () => new Date().toISOString();
@@ -15,11 +17,36 @@ const now = () => new Date().toISOString();
 /** In-memory store for stub-mode development and tests. Nothing persists. */
 export class MemoryStore implements Store {
   kind = 'memory' as const;
+  private users = new Map<string, User>();
+  private userMerchants = new Map<string, Set<string>>();
   private merchants = new Map<string, Merchant>();
   private connections = new Map<string, GoogleConnection>();
   private approvals = new Map<string, Approval>();
   private funding = new Map<string, AccountFunding>();
   private auditLog: Array<AuditEvent & { createdAt: string }> = [];
+
+  async createUser(u: { email: string; passwordHash: string; role: UserRole }): Promise<User> {
+    if ([...this.users.values()].some((x) => x.email === u.email)) throw new Error('email already registered');
+    const user: User = { id: randomUUID(), ...u, createdAt: now() };
+    this.users.set(user.id, user);
+    return user;
+  }
+  async getUser(id: string) {
+    return this.users.get(id) ?? null;
+  }
+  async getUserByEmail(email: string) {
+    return [...this.users.values()].find((u) => u.email === email) ?? null;
+  }
+  async countUsers() {
+    return this.users.size;
+  }
+  async bindUserMerchant(userId: string, merchantId: string) {
+    if (!this.userMerchants.has(userId)) this.userMerchants.set(userId, new Set());
+    this.userMerchants.get(userId)!.add(merchantId);
+  }
+  async listMerchantIdsForUser(userId: string) {
+    return [...(this.userMerchants.get(userId) ?? [])];
+  }
 
   async createMerchant(m: { name: string; countryCode: string; currencyCode: string }): Promise<Merchant> {
     const merchant: Merchant = { id: randomUUID(), name: m.name, countryCode: m.countryCode, currencyCode: m.currencyCode, createdAt: now() };
@@ -56,6 +83,9 @@ export class MemoryStore implements Store {
   }
   async getConnection(merchantId: string, module: Module) {
     return [...this.connections.values()].find((x) => x.merchantId === merchantId && x.module === module) ?? null;
+  }
+  async getConnectionById(id: string) {
+    return this.connections.get(id) ?? null;
   }
   async listConnections(merchantId: string) {
     return [...this.connections.values()].filter((x) => x.merchantId === merchantId);

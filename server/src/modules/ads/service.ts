@@ -341,6 +341,9 @@ export class AdsService {
   getCampaign(id: string) {
     return this.ads.getCampaign(id);
   }
+  getAccount(id: string) {
+    return this.ads.getAccount(id);
+  }
   listCampaigns(merchantId: string) {
     return this.ads.listCampaigns(merchantId);
   }

@@ -10,9 +10,15 @@ import type {
   Merchant,
   Module,
   Store,
+  User,
+  UserRole,
 } from './types.js';
 
 const { Pool } = pg;
+
+function userRow(r: any): User {
+  return { id: r.id, email: r.email, passwordHash: r.password_hash, role: r.role, createdAt: r.created_at.toISOString() };
+}
 
 function merchantRow(r: any): Merchant {
   return { id: r.id, name: r.name, countryCode: r.country_code, currencyCode: r.currency_code, createdAt: r.created_at.toISOString() };
@@ -68,6 +74,33 @@ export class PgStore implements Store {
     return applied;
   }
 
+  async createUser(u: { email: string; passwordHash: string; role: UserRole }) {
+    const { rows } = await this.pool.query(
+      'insert into users (email, password_hash, role) values ($1,$2,$3) returning *',
+      [u.email, u.passwordHash, u.role],
+    );
+    return userRow(rows[0]);
+  }
+  async getUser(id: string) {
+    const { rows } = await this.pool.query('select * from users where id = $1', [id]);
+    return rows[0] ? userRow(rows[0]) : null;
+  }
+  async getUserByEmail(email: string) {
+    const { rows } = await this.pool.query('select * from users where email = $1', [email]);
+    return rows[0] ? userRow(rows[0]) : null;
+  }
+  async countUsers() {
+    const { rows } = await this.pool.query('select count(*)::int as n from users');
+    return rows[0].n as number;
+  }
+  async bindUserMerchant(userId: string, merchantId: string) {
+    await this.pool.query('insert into user_merchants (user_id, merchant_id) values ($1,$2) on conflict do nothing', [userId, merchantId]);
+  }
+  async listMerchantIdsForUser(userId: string) {
+    const { rows } = await this.pool.query('select merchant_id from user_merchants where user_id = $1', [userId]);
+    return rows.map((r: any) => r.merchant_id as string);
+  }
+
   async createMerchant(m: { name: string; countryCode: string; currencyCode: string }) {
     const { rows } = await this.pool.query(
       'insert into merchants (name, country_code, currency_code) values ($1,$2,$3) returning *',
@@ -110,6 +143,10 @@ export class PgStore implements Store {
       'select * from google_connections where merchant_id = $1 and module = $2',
       [merchantId, module],
     );
+    return rows[0] ? connRow(rows[0]) : null;
+  }
+  async getConnectionById(id: string) {
+    const { rows } = await this.pool.query('select * from google_connections where id = $1', [id]);
     return rows[0] ? connRow(rows[0]) : null;
   }
   async listConnections(merchantId: string) {
